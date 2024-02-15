@@ -24,8 +24,7 @@ class SparkApplicationExample:
                 result = self.dfs[i].join(self.dfs[i + 1], operations[i], types[i])
             else:
                 result = result.join(self.dfs[i + 1], operations[i], types[i])
-        result.toPandas().to_csv(f"{saveResTo}SparkResult", index=False)
-        self.spark.stop()
+        result.toPandas().to_csv(f"{saveResTo}/SparkResult", index=False)
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 import subprocess
-import sys
 from chispa.dataframe_comparer import assert_df_equality
 import pyspark
+import argparse
 
 from generator.sample_generator import sample_generator
 
@@ -34,17 +34,17 @@ def run_spark_application(programm, programm_args,path_to_res):
 
 
 if __name__ == '__main__':
-    path_to_cfg = sys.argv[1]
-    path_to_dfs = sys.argv[2]
-    path_to_spark_app = sys.argv[3]
-    path_to_result = sys.argv[4]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--configuration",help="Insert path to your yaml configuration file")
+    parser.add_argument("--dfs",help="Insert paths to dfs generated from generator. By default"
+                                     "all dataframes will be saved to /root/data/")
+    parser.add_argument("--spark",help="Insert path to your spark application")
+    parser.add_argument("--res",help="Insure the path, where the output of your spark application need to be saved")
+    args = parser.parse_args()
+    path_to_cfg = args.configuration
+    path_to_dfs = args.dfs
+    path_to_spark_app = args.spark
+    path_to_result = args.res
     run_generator_with_cfg(path_to_cfg)
     run_spark_application(path_to_spark_app, path_to_dfs,path_to_result)
     tttester(path_to_result+"/SparkResult")
-
-# Спарк приложение должно принимать пути к файлам-исходникам и знать куда сохранять результат
-# Тестер запускает спарк приложение, для этого ему нужно знать имя этой программы и какие параметры нужно передать, место где хранится ожидаемый и фактический результаты.
-# Причем место где хранится ожидаемый результат надо также передавать
-
-
-#Именованные аргументы в консоли, написать инструкцию по запуску, выложить на гитхаб и отправить ссылочку
