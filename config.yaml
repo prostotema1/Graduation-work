@@ -1,0 +1,73 @@
+datasets: #Provide below dataset name, schema configuration with restrictions to fields and size of schema
+  user_info: #Dataset name
+    schema:
+      user_id: # Field 1
+        type: IntegerType
+        nullable: False
+        #Restrictions: 10-50
+      user_name: # Field 2
+        type: StringType
+        nullable: False
+        #Restrictions:
+      email: # Field 3 and etc
+        type: StringType
+        nullable: False
+        #Restrictions:
+      premium:
+        type: BooleanType
+        nullable: False
+        #Restrinctions:
+    size: 40
+  user_buy:
+    schema:
+      user_id:
+        type: IntegerType
+        nullable: False
+        #Restrictions:
+      bought_date:
+        type: DateType
+        nullable: False
+        #Restrictions:
+      product_id:
+        type: IntegerType
+        nullable: False
+        #Restrictions:
+    size: 20
+  product:
+    schema:
+      product_id:
+        type: IntegerType
+        nullable: False
+        #Restrictions:
+      product_name:
+        type: StringType
+        nullable: False
+        #Restrictions:
+      price:
+        type: DoubleType
+        nullable: False
+        #Restrictions:
+    size: 20
+
+restrictions:
+  min_int: 0
+  max_int: 100
+  min_double: 0.0
+  max_double: 100.0
+  min_date: 1979-01-01
+  max_date: 2047-12-02
+  string_format: ?###???#?#?
+  letters: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+  save_to_csv: True # If true, result will be saved to csv format, else to Parquet
+
+join_conditions:
+  join_condition1:
+    #left: user_info
+    #right: user_buy
+    condition: user_info.user_id = user_buy.user_id
+    type: left
+    intersecting_records: 20
+  join_condition2:
+    condition: user_buy.product_id = product.product_id
+    type: right
+    intersecting_records: 20
