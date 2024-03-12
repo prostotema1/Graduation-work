@@ -1,8 +1,9 @@
 import datetime
+import random
 
 import pandas as pd
 from pandas import DataFrame
-from pyspark.sql.types import StructType, IntegerType, DoubleType, DateType, BooleanType
+from pyspark.sql.types import StructType, IntegerType, DoubleType, DateType, BooleanType, StringType
 from pyspark.sql.types import DataType
 from faker import Faker
 
@@ -21,6 +22,8 @@ class sample_generator:
                  letters='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
                  dataset_names="",
                  safe_to_csv=True):
+        self.possible_values = {}
+        self.unique_restrictions = {}
         self.min_int = min_int
         self.max_int = max_int
         self.min_double = min_double
@@ -39,20 +42,22 @@ class sample_generator:
 
     def init_with_cfg(self, path_to_file):
         cfg_manager = Config_Manager(path_to_file)
-        self.dataset_names, sizes, schemas, restrictions, join_conditions, join_type, correlated_keys = cfg_manager.give_info()
+        self.dataset_names, sizes, schemas, not_unique_restrictions, unique_restriction, possible_values, join_conditions, join_type, correlated_keys = cfg_manager.give_info()
         schemas = list(schemas.values())
-        self.min_int = restrictions['min_int']
-        self.max_int = restrictions['max_int']
-        self.min_double = restrictions['min_double']
-        self.max_double = restrictions['max_double']
-        self.min_date = restrictions['min_date']
-        self.max_date = restrictions['max_date']
-        self.string_format = restrictions['string_format']
-        self.letters = restrictions['letters']
-        self.safe_to_csv = restrictions['save_to_csv']
-        self.generate_samples(schemas,sizes,join_conditions,join_type,correlated_keys)
+        self.min_int = not_unique_restrictions['min_int']
+        self.max_int = not_unique_restrictions['max_int']
+        self.min_double = not_unique_restrictions['min_double']
+        self.max_double = not_unique_restrictions['max_double']
+        self.min_date = not_unique_restrictions['min_date']
+        self.max_date = not_unique_restrictions['max_date']
+        self.string_format = not_unique_restrictions['string_format']
+        self.letters = not_unique_restrictions['letters']
+        self.safe_to_csv = not_unique_restrictions['save_to_csv']
+        self.unique_restrictions = unique_restriction
+        self.possible_values = possible_values
+        self.generate_samples(schemas, sizes, join_conditions, join_type, correlated_keys)
 
-    def generate_not_unique_datatype(self, data_type: DataType, field_name: str):
+    def generate_not_unique_datatype(self, data_type: DataType, field_name: str, dataset_name: str):
         if field_name not in self.generators:
             self.generators[field_name] = Faker('ru_RU')
         fake = self.generators[field_name]
@@ -67,13 +72,37 @@ class sample_generator:
         else:
             return fake.pystr_format(self.string_format, self.letters)
 
-    def generate_unique_datatype(self, data_type: DataType, field_name: str):
+    def generate_unique_datatype(self, data_type: DataType, field_name: str, dataset_name: str):
         if field_name not in self.generators:
             self.generators[field_name] = Faker('ru_RU')
         fake = self.generators[field_name]
+        if f"{dataset_name}.{field_name}" in self.unique_restrictions:
+            if data_type == IntegerType():
+                min_val = self.unique_restrictions[f"{dataset_name}.{field_name}"][0]
+                max_val = self.unique_restrictions[f"{dataset_name}.{field_name}"][1]
+                return fake.unique.random_int(min_val, max_val)
+            elif data_type == DoubleType():
+                min_val = self.unique_restrictions[f"{dataset_name}.{field_name}"][0]
+                max_val = self.unique_restrictions[f"{dataset_name}.{field_name}"][1]
+                return fake.unique.pyfloat(min_value=min_val, max_value=max_val)
+            elif data_type == DateType():
+                min_date = list(map(lambda x: int(x),self.unique_restrictions[f"{dataset_name}.{field_name}"][0].split("-")))
+                min_date=datetime.date(min_date[0], min_date[1], min_date[2])
+                max_date = list(map(lambda x: int(x),self.unique_restrictions[f"{dataset_name}.{field_name}"][1].split("-")))
+                max_date = datetime.date(max_date[0], max_date[1], max_date[2])
+                return fake.unique.date_between_dates(date_start=min_date, date_end=max_date)
+            elif data_type == StringType():
+                str_format = self.unique_restrictions[f"{dataset_name}.{field_name}"][0]
+                letters = self.unique_restrictions[f"{dataset_name}.{field_name}"][1]
+                return fake.pystr_format(str_format, letters)
+
+        elif f"{dataset_name}.{field_name}" in self.possible_values:
+            return fake.random_choices(self.possible_values[f"{dataset_name}.{field_name}"],length=1)[0]
+
+
         if data_type == IntegerType():
             return fake.unique.random_int(self.min_int,
-                                          self.max_int)  # Что случится если мы попросим инт, но свободных уже не будет
+                                          self.max_int)
         elif data_type == BooleanType():
             return fake.pybool()
         elif data_type == DoubleType():
@@ -86,12 +115,13 @@ class sample_generator:
     def generate_left_sample(self,
                              df: DataFrame,
                              size: int,
-                             schema: StructType
+                             schema: StructType,
+                             df_name: str
                              ):
         for i in range(size):
             data = {}
             for field in schema.fields:
-                res = self.generate_unique_datatype(field.dataType, field.name)
+                res = self.generate_unique_datatype(field.dataType, field.name, df_name)
                 data[field.name] = res
             df.loc[len(df)] = data
 
@@ -100,6 +130,8 @@ class sample_generator:
                                       schema2: StructType,
                                       size1: int,
                                       size2: int,
+                                      name1: str,
+                                      name2: str,
                                       count_corrrelated_keys: int = 0) -> tuple[DataFrame, DataFrame]:
         df1 = pd.DataFrame(columns=schema1.fieldNames())
         df2 = pd.DataFrame(columns=schema2.fieldNames())
@@ -111,7 +143,7 @@ class sample_generator:
             data1 = {}
             data2 = {}
             for field, field_type in self.common_fields.items():
-                res = self.generate_unique_datatype(field_type, field)
+                res = self.generate_unique_datatype(field_type, field, name1)
                 data1[field] = res
                 data2[field] = res
                 if field not in self.common_values.keys():
@@ -120,19 +152,18 @@ class sample_generator:
 
             for j in schema1.fields:
                 if j.name not in self.common_fields.keys():
-                    res = self.generate_unique_datatype(j.dataType, j.name)
+                    res = self.generate_unique_datatype(j.dataType, j.name, name1)
                     data1[j.name] = res
 
             for j in schema2.fields:
                 if j.name not in self.common_fields.keys():
-                    res = self.generate_unique_datatype(j.dataType, j.name)
+                    res = self.generate_unique_datatype(j.dataType, j.name, name2)
                     data2[j.name] = res
 
             df1.loc[len(df1)] = data1
             df2.loc[len(df2)] = data2
-
-        self.generate_left_sample(df1, size1 - count_corrrelated_keys, schema1)
-        self.generate_left_sample(df2, size2 - count_corrrelated_keys, schema2)
+        self.generate_left_sample(df1, size1 - count_corrrelated_keys, schema1, name1)
+        self.generate_left_sample(df2, size2 - count_corrrelated_keys, schema2, name2)
         return df1, df2
 
     def validate_conditions(self, correlated_keys: list[int],
@@ -165,6 +196,7 @@ class sample_generator:
                                            df1: DataFrame,
                                            schema: StructType,
                                            size: int,
+                                           dataset_name: str,
                                            correlated_keys: int) -> DataFrame:
         if correlated_keys > len(df1):
             raise Exception("Correlated_keys is greater than length of joined dataframe")
@@ -181,10 +213,10 @@ class sample_generator:
                 if j.name in current_field.keys():
                     data[j.name] = df1[j.name][i]
                 else:
-                    res = self.generate_unique_datatype(j.dataType, j.name)
+                    res = self.generate_unique_datatype(j.dataType, j.name, dataset_name)
                     data[j.name] = res
             df.loc[len(df)] = data
-        self.generate_left_sample(df, size - correlated_keys, schema)
+        self.generate_left_sample(df, size - correlated_keys, schema, dataset_name)
         return df
 
     def save_dfs(self, dfs):
@@ -199,10 +231,10 @@ class sample_generator:
                     dfs[i].to_parquet(f"data/{self.dataset_names[i]}", index=False)
                 else:
                     dfs[i].to_parquet(f"data/Dataset№{i + 1}", index=False)
-        dfs[-1].to_csv("data/Result", index=False) if self.safe_to_csv else dfs[-1].to_parquet("data/Result", index=False)
+        dfs[-1].to_csv("data/Result", index=False) if self.safe_to_csv else dfs[-1].to_parquet("data/Result",
+                                                                                               index=False)
 
-
-    def get_type(self,string):
+    def get_type(self, string):
         if string == IntegerType():
             return "Int64"
         elif string == DoubleType():
@@ -211,6 +243,7 @@ class sample_generator:
             return "bool"
         else:
             return "object"
+
     def generate_samples(self,
                          schemas: list[StructType],
                          sizes: list[int],
@@ -223,7 +256,10 @@ class sample_generator:
         df1 = None
         for i in range(len(schemas) - 1):
             if i == 0:
-                df1, df2 = self.generate_2_correlated_samples(schemas[i], schemas[i + 1], sizes[i], sizes[i + 1],
+                name1 = "dataset1" if self.dataset_names == "" else self.dataset_names[0]
+                name2 = "dataset2" if self.dataset_names == "" else self.dataset_names[1]
+                df1, df2 = self.generate_2_correlated_samples(schemas[i], schemas[i + 1], sizes[i], sizes[i + 1], name1,
+                                                              name2,
                                                               correlated_keys[i])
                 dfs.append(df1)
                 dfs.append(df2)
@@ -236,11 +272,13 @@ class sample_generator:
                     df[j] = df[j].astype(typer)
                 df1 = df
             else:
-                df = self.generate_sample_with_joined_sample(df1, schemas[i + 1], sizes[i + 1], correlated_keys[i])
+                name = f"dataset{i}" if self.dataset_names == "" else self.dataset_names[i + 1]
+                df = self.generate_sample_with_joined_sample(df1, schemas[i + 1], sizes[i + 1], name,
+                                                             correlated_keys[i])
                 dfs.append(df)
                 df1 = self.join_2_datasets(df1, df, join_condition=join_conditions[i], join_type=join_type[i])
                 for j in df.columns.values:
-                    typer = self.get_type(schemas[i+1][j].dataType)
+                    typer = self.get_type(schemas[i + 1][j].dataType)
                     df1[j] = df1[j].astype(typer)
         dfs.append(df1)
         self.save_dfs(dfs)
