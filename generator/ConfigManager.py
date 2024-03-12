@@ -97,6 +97,7 @@ class Config_Manager:
                            join_type,
                            intersecting_keys):
         assert self.validate_sizes(schemas, join_type, join_conditions, intersecting_keys, dataset_sizes, dataset_names)
+        assert self.validate_field_type(schemas,dataset_names)
         assert self.validate_size_and_not_unique_restriction(dataset_names, schemas, not_unique_restrictions,
                                                              unique_restrictions, possible_values, dataset_sizes)
         assert self.validate_size_and_unique_restrictions_for_dataset(dataset_names, dataset_sizes, schemas,
@@ -110,6 +111,25 @@ class Config_Manager:
                                                                                       unique_restrictions,
                                                                                       possible_values,
                                                                                       not_unique_restrictions)
+
+
+    def validate_field_type(self,schemas,dataset_names):
+        for i in range(len(dataset_names)-1):
+            dataset1 = dataset_names[i]
+            for j in range(i+1,len(dataset_names)):
+                dataset2 = dataset_names[j]
+                for field in schemas[dataset1].fields:
+                    if field in schemas[dataset2].fields:
+                        field2 = schemas[dataset2].fields
+                        fieldd = None
+                        for x in field2:
+                            if x.name == field.name:
+                                fieldd = x
+                                break
+                        if fieldd.dataType != field.dataType:
+                            return False
+        return True
+
 
     def validate_sizes(self, schemas, join_type, join_conditions, correlated_keys, dataset_size, dataset_names) -> bool:
         if len(schemas) == len(join_type) + 1 and len(schemas) == len(join_conditions) + 1 and len(schemas) == len(
@@ -437,3 +457,4 @@ class Config_Manager:
                         if r - l <= 0:
                             return False
         return True
+Config_Manager("../config.yaml")
