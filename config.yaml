@@ -4,19 +4,19 @@ datasets: #Provide below dataset name, schema configuration with restrictions to
       user_id: # Field 1
         type: IntegerType
         nullable: False
-        #Restrictions: 10-50
+        restriction: 0:100
       user_name: # Field 2
         type: StringType
         nullable: False
-        #Restrictions:
+        string_format: ?###???#?#?
+        letters: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
       email: # Field 3 and etc
         type: StringType
         nullable: False
-        #Restrictions:
+        values: jasongonzales@yahoo.com,patricia87@hotmail.com,mortega@hotmail.com,rachel24@hotmail.com,fmartin@yahoo.com,debbieperez@yahoo.com,dylanwilliams@yahoo.com,austin83@gmail.com,mark47@yahoo.com,daltonallen@hotmail.com,vsmith@gmail.com,kathryn82@hotmail.com,oliverrebecca@gmail.com,sdavis@hotmail.com,sandersjon@yahoo.com,gdaniels@gmail.com,blakewilliams@gmail.com,schmidtmisty@yahoo.com,edwin29@gmail.com,paulberry@hotmail.com,iray@gmail.com,zamorabrian@yahoo.com,wintersdaniel@hotmail.com,lisamartin@hotmail.com,hilladrian@gmail.com,erika45@hotmail.com,khansen@gmail.com,andrew77@yahoo.com,betty77@gmail.com,hulljordan@yahoo.com,chelsea28@hotmail.com,lesliecampbell@hotmail.com,stacy47@gmail.com,jenniferzamora@yahoo.com,alicialindsey@gmail.com,bakerallen@yahoo.com,heather75@hotmail.com,ascott@gmail.com,tgregory@yahoo.com,angelaadkins@gmail.com,steinrebecca@hotmail.com,donaldsonmarco@yahoo.com,alvarezpaula@hotmail.com,moranbradley@gmail.com,turnerdouglas@hotmail.com,zbaldwin@hotmail.com,fburns@yahoo.com,brian33@hotmail.com,fhill@hotmail.com,shansen@yahoo.com,desiree10@hotmail.com,jodihoward@yahoo.com,osborneteresa@hotmail.com,samuel59@yahoo.com,irodriguez@gmail.com,terri48@gmail.com,russellwilliam@gmail.com,valdezalexander@gmail.com,perezelijah@hotmail.com,hhumphrey@gmail.com,jonathanpark@hotmail.com,mauricethompson@yahoo.com,tcrawford@gmail.com,williamshaley@yahoo.com,tpineda@hotmail.com,jamesjackson@hotmail.com,jeffrey27@hotmail.com,zcosta@yahoo.com,lopezjasmin@yahoo.com,igomez@gmail.com,qgarcia@hotmail.com,francocatherine@hotmail.com,iking@yahoo.com,marybarber@gmail.com,xdavis@gmail.com,jeffrey84@gmail.com,ydavis@yahoo.com,davidrose@yahoo.com,brian25@gmail.com,pagemarcia@yahoo.com,nhill@gmail.com,krystalmoran@gmail.com,kmoody@yahoo.com,santosjohn@yahoo.com,scott16@hotmail.com,michealkey@hotmail.com,alisongordon@hotmail.com,mark93@hotmail.com,kathytanner@hotmail.com,george57@yahoo.com,mark36@gmail.com,jonathanmorris@gmail.com,cjones@hotmail.com,carriecabrera@gmail.com,wisemelanie@yahoo.com,jjennings@gmail.com,eric80@yahoo.com,zwhitehead@gmail.com,xallen@yahoo.com,kennethkelly@yahoo.com
       premium:
         type: BooleanType
         nullable: False
-        #Restrinctions:
     size: 40
   user_buy:
     schema:
@@ -27,7 +27,7 @@ datasets: #Provide below dataset name, schema configuration with restrictions to
       bought_date:
         type: DateType
         nullable: False
-        #Restrictions:
+        restriction: 1200-01-01:2020-01-01
       product_id:
         type: IntegerType
         nullable: False
@@ -49,6 +49,14 @@ datasets: #Provide below dataset name, schema configuration with restrictions to
         #Restrictions:
     size: 20
 
+#Unique restrictions should be passed as next sequence
+#IntegerType Restrictions: min_value;max_value example:
+#user_id: type:IntegerType restriction: 20000;300000
+
+
+
+
+#Добавить флаг для повтора
 restrictions:
   min_int: 0
   max_int: 100
