@@ -437,6 +437,3 @@ class Config_Manager:
                         if r - l <= 0:
                             return False
         return True
-
-
-Config_Manager("../config.yaml")
