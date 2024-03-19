@@ -43,11 +43,12 @@ class Config_Manager:
                                                                     alias[field]["letters"]]
                 if "values" in alias[field]:
                     value = alias[field]['values'].split(",")
+                    repeatable = alias[field]['repeatable']
                     if type == IntegerType():
                         value = list(map(lambda x: int(x), alias[field]['values'].split(",")))
                     if type == DoubleType():
                         value = list(map(lambda x: float(x), alias[field]['values'].split(",")))
-                    possible_values[dataset + "." + field] = value
+                    possible_values[dataset + "." + field] = [repeatable, value]
         join_conditions = []
         join_type = []
         intersecting_keys = []
@@ -97,7 +98,7 @@ class Config_Manager:
                            join_type,
                            intersecting_keys):
         assert self.validate_sizes(schemas, join_type, join_conditions, intersecting_keys, dataset_sizes, dataset_names)
-        assert self.validate_field_type(schemas,dataset_names)
+        assert self.validate_field_type(schemas, dataset_names)
         assert self.validate_size_and_not_unique_restriction(dataset_names, schemas, not_unique_restrictions,
                                                              unique_restrictions, possible_values, dataset_sizes)
         assert self.validate_size_and_unique_restrictions_for_dataset(dataset_names, dataset_sizes, schemas,
@@ -112,11 +113,10 @@ class Config_Manager:
                                                                                       possible_values,
                                                                                       not_unique_restrictions)
 
-
-    def validate_field_type(self,schemas,dataset_names):
-        for i in range(len(dataset_names)-1):
+    def validate_field_type(self, schemas, dataset_names):
+        for i in range(len(dataset_names) - 1):
             dataset1 = dataset_names[i]
-            for j in range(i+1,len(dataset_names)):
+            for j in range(i + 1, len(dataset_names)):
                 dataset2 = dataset_names[j]
                 for field in schemas[dataset1].fields:
                     if field in schemas[dataset2].fields:
@@ -129,7 +129,6 @@ class Config_Manager:
                         if fieldd.dataType != field.dataType:
                             return False
         return True
-
 
     def validate_sizes(self, schemas, join_type, join_conditions, correlated_keys, dataset_size, dataset_names) -> bool:
         if len(schemas) == len(join_type) + 1 and len(schemas) == len(join_conditions) + 1 and len(schemas) == len(
@@ -169,20 +168,23 @@ class Config_Manager:
             dataset2 = dataset_names[i + 1]
             for field in schemas[dataset1].fields:
                 if f"{dataset1}.{field.name}" in possible_values and f"{dataset2}.{field.name}" in possible_values:
-                    restr1 = possible_values[f"{dataset1}.{field.name}"]
-                    restr2 = possible_values[f"{dataset2}.{field.name}"]
+                    restr1 = possible_values[f"{dataset1}.{field.name}"][1]
+                    restr2 = possible_values[f"{dataset2}.{field.name}"][1]
                     intersection = [x for x in restr1 if x in restr2]
-                    if len(intersection) < correlated_keys[i]:
+                    if len(intersection) < correlated_keys[i] and (not possible_values[f"{dataset1}.{field.name}"][0] \
+                                                                   or not possible_values[f"{dataset1}.{field.name}"][
+                                0]):
                         return False
         return True
 
     def validate_field_size_with_possible_values(self, dataset_names, schemas, dataset_sizes, possible_values) -> bool:
         for dataset in dataset_names:
             for field in schemas[dataset].fields:
-                if f"{dataset}.{field.name}" in possible_values and len(possible_values[f"{dataset}.{field.name}"]) < \
-                        dataset_sizes[dataset]:
+                if f"{dataset}.{field.name}" in possible_values and len(possible_values[f"{dataset}.{field.name}"][1]) < \
+                        dataset_sizes[dataset] and not possible_values[f"{dataset}.{field.name}"][0]:
                     return False
         return True
+
     def validate_fields_size_with_possible_values_and_unique_restrictions(self, dataset_names, schemas, correlated_keys,
                                                                           unique_restrictions, possible_values,
                                                                           not_unique_restrictions):
@@ -222,10 +224,10 @@ class Config_Manager:
                 counter = 0
                 l = unique_restrictions[f"{dataset_name2}.{field.name}"][0]
                 r = unique_restrictions[f"{dataset_name2}.{field.name}"][1]
-                for x in possible_values[f"{dataset_name1}.{field.name}"]:
+                for x in possible_values[f"{dataset_name1}.{field.name}"][1]:
                     if l <= x <= r:
                         counter += 1
-                if counter < correlated_keys[fixed_name]:
+                if counter < correlated_keys[fixed_name] and not possible_values[f"{dataset_name1}.{field.name}"][0]:
                     return False
             elif field.dataType == DateType():
                 counter = 0
@@ -233,12 +235,12 @@ class Config_Manager:
                 l = datetime.date(int(l[0]), int(l[1]), int(l[2]))
                 r = unique_restrictions[f"{dataset_name2}.{field.name}"][1].split("-")
                 r = datetime.date(int(r[0]), int(r[1]), int(r[2]))
-                for x in possible_values[f"{dataset_name1}.{field.name}"]:
+                for x in possible_values[f"{dataset_name1}.{field.name}"][1]:
                     x = x.split("-")
                     x = datetime.date(int(x[0]), int(x[1]), int(x[2]))
                     if l <= x <= r:
                         counter += 1
-                if counter < correlated_keys[fixed_name]:
+                if counter < correlated_keys[fixed_name] and not possible_values[f"{dataset_name1}.{field.name}"][0]:
                     return False
         return True
 
@@ -315,23 +317,23 @@ class Config_Manager:
                 l = unique_restrictions['min_int']
                 r = unique_restrictions['max_int']
                 counter = 0
-                for x in possible_values[f"{dataset1}.{field.name}"]:
+                for x in possible_values[f"{dataset1}.{field.name}"][1]:
                     if l <= x <= r:
                         counter += 1
                         if counter == correlated_keys[fixed_name]:
                             break
-                if counter < correlated_keys[fixed_name]:
+                if counter < correlated_keys[fixed_name] and not possible_values[f"{dataset1}.{field.name}"][1]:
                     return False
             elif field == DoubleType():
                 l = unique_restrictions['min_double']
                 r = unique_restrictions['max_double']
                 counter = 0
-                for x in possible_values[f"{dataset1}.{field.name}"]:
+                for x in possible_values[f"{dataset1}.{field.name}"][1]:
                     if l <= x <= r:
                         counter += 1
                         if counter == correlated_keys[fixed_name]:
                             break
-                if counter < correlated_keys[fixed_name]:
+                if counter < correlated_keys[fixed_name] and not possible_values[f"{dataset1}.{field.name}"][0]:
                     return False
             elif field == DateType():
                 l = unique_restrictions['min_date'].split("-")
@@ -339,14 +341,14 @@ class Config_Manager:
                 l = datetime.date(int(l[0]), int(l[1]), int(l[2]))
                 r = datetime.date(int(r[0]), int(r[1]), int(r[2]))
                 counter = 0
-                for x in possible_values[f"{dataset1}.{field.name}"]:
+                for x in possible_values[f"{dataset1}.{field.name}"][1]:
                     x = x.split("-")
                     x = datetime.date(int(x[0]), int(x[1]), int(x[2]))
                     if l <= x <= r:
                         counter += 1
                     if counter == correlated_keys[fixed_name]:
                         break
-                if counter < correlated_keys[fixed_name]:
+                if counter < correlated_keys[fixed_name] and not possible_values[f"{dataset1}.{field.name}"][0]:
                     return False
         return True
 
@@ -457,4 +459,3 @@ class Config_Manager:
                         if r - l <= 0:
                             return False
         return True
-Config_Manager("../config.yaml")

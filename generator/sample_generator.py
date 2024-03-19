@@ -86,9 +86,11 @@ class sample_generator:
                 max_val = self.unique_restrictions[f"{dataset_name}.{field_name}"][1]
                 return fake.unique.pyfloat(min_value=min_val, max_value=max_val)
             elif data_type == DateType():
-                min_date = list(map(lambda x: int(x),self.unique_restrictions[f"{dataset_name}.{field_name}"][0].split("-")))
-                min_date=datetime.date(min_date[0], min_date[1], min_date[2])
-                max_date = list(map(lambda x: int(x),self.unique_restrictions[f"{dataset_name}.{field_name}"][1].split("-")))
+                min_date = list(
+                    map(lambda x: int(x), self.unique_restrictions[f"{dataset_name}.{field_name}"][0].split("-")))
+                min_date = datetime.date(min_date[0], min_date[1], min_date[2])
+                max_date = list(
+                    map(lambda x: int(x), self.unique_restrictions[f"{dataset_name}.{field_name}"][1].split("-")))
                 max_date = datetime.date(max_date[0], max_date[1], max_date[2])
                 return fake.unique.date_between_dates(date_start=min_date, date_end=max_date)
             elif data_type == StringType():
@@ -97,8 +99,12 @@ class sample_generator:
                 return fake.pystr_format(str_format, letters)
 
         elif f"{dataset_name}.{field_name}" in self.possible_values:
-            return fake.random_choices(self.possible_values[f"{dataset_name}.{field_name}"],length=1)[0]
-
+            if self.possible_values[f"{dataset_name}.{field_name}"][0] == True:
+                return fake.random_choices(self.possible_values[f"{dataset_name}.{field_name}"][1], length=1)[0]
+            else:
+                value = fake.random_choices(self.possible_values[f"{dataset_name}.{field_name}"][1], length=1)[0]
+                self.possible_values[f"{dataset_name}.{field_name}"][1].remove(value)
+                return value
 
         if data_type == IntegerType():
             return fake.unique.random_int(self.min_int,
@@ -183,13 +189,16 @@ class sample_generator:
                         df1: DataFrame,
                         df2: DataFrame,
                         join_condition: str = "a=b",
-                        join_type: str = "inner"):
+                        join_type: str = "inner",
+                        i: int =0):
         join_condition_split = list(map(lambda x: str(x.strip().split(".")[1]), join_condition.split("=")))
-
+        df1name = self.dataset_names[i] if self.dataset_names != "" else "dataset1"
+        df2name = self.dataset_names[i+1] if self.dataset_names != "" else "dataset1"
         result = df1.merge(df2,
                            left_on=join_condition_split[0],
                            right_on=join_condition_split[-1],
-                           how=join_type)
+                           how=join_type,
+                           suffixes=(f'.{df1name}',f'.{df2name}'))
         return result
 
     def generate_sample_with_joined_sample(self,
@@ -223,16 +232,17 @@ class sample_generator:
         for i in range(len(dfs) - 1):
             if self.safe_to_csv:
                 if self.dataset_names != "":
-                    dfs[i].to_csv(f"data/{self.dataset_names[i]}", index=False)
+                    dfs[i].to_csv(f"data/{self.dataset_names[i]}.csv", index=False)
                 else:
-                    dfs[i].to_csv(f"data/Dataset№{i + 1}", index=False)
+                    dfs[i].to_csv(f"data/Dataset№{i + 1}.csv", index=False)
             else:
                 if self.dataset_names != "":
-                    dfs[i].to_parquet(f"data/{self.dataset_names[i]}", index=False)
+                    dfs[i].to_parquet(f"data/{self.dataset_names[i]}.parquet", index=False)
                 else:
-                    dfs[i].to_parquet(f"data/Dataset№{i + 1}", index=False)
-        dfs[-1].to_csv("data/Result", index=False) if self.safe_to_csv else dfs[-1].to_parquet("data/Result",
-                                                                                               index=False)
+                    dfs[i].to_parquet(f"data/Dataset№{i + 1}.parquet", index=False)
+        dfs[-1].to_csv("data/Result.csv", index=False) if self.safe_to_csv else dfs[-1].to_parquet(
+            "data/Result.parquet",
+            index=False)
 
     def get_type(self, string):
         if string == IntegerType():
@@ -263,23 +273,40 @@ class sample_generator:
                                                               correlated_keys[i])
                 dfs.append(df1)
                 dfs.append(df2)
-                df = self.join_2_datasets(df1, df2, join_condition=join_conditions[i], join_type=join_type[i])
+                df = self.join_2_datasets(df1, df2, join_condition=join_conditions[i], join_type=join_type[i],i=i)
                 for j in df1.columns.values:
                     typer = self.get_type(schemas[0][j].dataType)
-                    df[j] = df[j].astype(typer)
+                    if j in df.columns:
+                        df[j] = df[j].astype(typer)
+                    else:
+                        df[j+f".{self.dataset_names[0]}"] = df[j+f".{self.dataset_names[0]}"].astype(typer)
                 for j in df2.columns.values:
                     typer = self.get_type(schemas[1][j].dataType)
-                    df[j] = df[j].astype(typer)
+                    if j in df.columns:
+                        df[j] = df[j].astype(typer)
+                    else:
+                        df[j + f".{self.dataset_names[1]}"] = df[j + f".{self.dataset_names[1]}"].astype(typer)
                 df1 = df
             else:
                 name = f"dataset{i}" if self.dataset_names == "" else self.dataset_names[i + 1]
                 df = self.generate_sample_with_joined_sample(df1, schemas[i + 1], sizes[i + 1], name,
                                                              correlated_keys[i])
                 dfs.append(df)
-                df1 = self.join_2_datasets(df1, df, join_condition=join_conditions[i], join_type=join_type[i])
+                df1 = self.join_2_datasets(df1, df, join_condition=join_conditions[i], join_type=join_type[i],i=i)
                 for j in df.columns.values:
-                    typer = self.get_type(schemas[i + 1][j].dataType)
+                    onlyField = j.split(".")[0]
+                    typer = self.get_type(schemas[i + 1][onlyField].dataType)
                     df1[j] = df1[j].astype(typer)
+        self.rename_results_dfs(df1)
         dfs.append(df1)
         self.save_dfs(dfs)
         return dfs
+
+    def rename_results_dfs(self,df):
+        need_to_change = {}
+        for j in df.columns.values:
+            j = j.split(".")
+            if len(j) == 2:
+                need_to_change[j[1]] = j[0]
+        for key,value in need_to_change.items():
+            df.rename(columns={f"{value}.{key}":f"{key}.{value}"},inplace=True)
