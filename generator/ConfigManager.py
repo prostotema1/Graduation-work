@@ -21,6 +21,7 @@ class Config_Manager:
         not_unique_restrictions = {}
         unique_restrictions = {}
         possible_values = {}
+        aggregation = {}
         for dataset in self.config['datasets']:
             dataset_names.append(dataset)
             schemas[dataset] = self.parse_fields(dataset)
@@ -56,6 +57,9 @@ class Config_Manager:
             join_conditions.append(self.config['join_conditions'][join]["condition"])
             join_type.append(self.config['join_conditions'][join]["type"])
             intersecting_keys.append(self.config['join_conditions'][join]["intersecting_records"])
+            if 'where' in self.config['join_conditions'][join]:
+                aggregation[self.config['join_conditions'][join]["condition"]] = self.config['join_conditions'][join][
+                    "where"]
         inter = {}
         for i in range(len(intersecting_keys)):
             inter[dataset_names[i]] = intersecting_keys[i]
@@ -63,7 +67,7 @@ class Config_Manager:
                                 possible_values, join_conditions, join_type, inter)
         dataset_sizes = list(map(lambda x: dataset_sizes[x], dataset_names))
 
-        return dataset_names, dataset_sizes, schemas, not_unique_restrictions, unique_restrictions, possible_values, join_conditions, join_type, intersecting_keys
+        return dataset_names, dataset_sizes, schemas, not_unique_restrictions, unique_restrictions, possible_values, join_conditions, join_type, intersecting_keys, aggregation
 
     def parse_fields(self, dataset):
         schema = StructType()

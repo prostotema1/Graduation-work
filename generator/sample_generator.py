@@ -42,8 +42,9 @@ class sample_generator:
 
     def init_with_cfg(self, path_to_file):
         cfg_manager = Config_Manager(path_to_file)
-        self.dataset_names, sizes, schemas, not_unique_restrictions, unique_restriction, possible_values, join_conditions, join_type, correlated_keys = cfg_manager.give_info()
+        self.dataset_names, sizes, schemas, not_unique_restrictions, unique_restriction, possible_values, join_conditions, join_type, correlated_keys, aggregation = cfg_manager.give_info()
         schemas = list(schemas.values())
+        self.aggregation = aggregation
         self.min_int = not_unique_restrictions['min_int']
         self.max_int = not_unique_restrictions['max_int']
         self.min_double = not_unique_restrictions['min_double']
@@ -190,15 +191,15 @@ class sample_generator:
                         df2: DataFrame,
                         join_condition: str = "a=b",
                         join_type: str = "inner",
-                        i: int =0):
+                        i: int = 0):
         join_condition_split = list(map(lambda x: str(x.strip().split(".")[1]), join_condition.split("=")))
         df1name = self.dataset_names[i] if self.dataset_names != "" else "dataset1"
-        df2name = self.dataset_names[i+1] if self.dataset_names != "" else "dataset1"
+        df2name = self.dataset_names[i + 1] if self.dataset_names != "" else "dataset1"
         result = df1.merge(df2,
                            left_on=join_condition_split[0],
                            right_on=join_condition_split[-1],
                            how=join_type,
-                           suffixes=(f'.{df1name}',f'.{df2name}'))
+                           suffixes=(f'.{df1name}', f'.{df2name}'))
         return result
 
     def generate_sample_with_joined_sample(self,
@@ -273,13 +274,13 @@ class sample_generator:
                                                               correlated_keys[i])
                 dfs.append(df1)
                 dfs.append(df2)
-                df = self.join_2_datasets(df1, df2, join_condition=join_conditions[i], join_type=join_type[i],i=i)
+                df = self.join_2_datasets(df1, df2, join_condition=join_conditions[i], join_type=join_type[i], i=i)
                 for j in df1.columns.values:
                     typer = self.get_type(schemas[0][j].dataType)
                     if j in df.columns:
                         df[j] = df[j].astype(typer)
                     else:
-                        df[j+f".{self.dataset_names[0]}"] = df[j+f".{self.dataset_names[0]}"].astype(typer)
+                        df[j + f".{self.dataset_names[0]}"] = df[j + f".{self.dataset_names[0]}"].astype(typer)
                 for j in df2.columns.values:
                     typer = self.get_type(schemas[1][j].dataType)
                     if j in df.columns:
@@ -287,26 +288,35 @@ class sample_generator:
                     else:
                         df[j + f".{self.dataset_names[1]}"] = df[j + f".{self.dataset_names[1]}"].astype(typer)
                 df1 = df
+                self.rename_results_dfs(df1)
+                if join_conditions[i] in self.aggregation:
+                    self.aggregate_datasets(df1, join_conditions[i])
             else:
                 name = f"dataset{i}" if self.dataset_names == "" else self.dataset_names[i + 1]
                 df = self.generate_sample_with_joined_sample(df1, schemas[i + 1], sizes[i + 1], name,
                                                              correlated_keys[i])
                 dfs.append(df)
-                df1 = self.join_2_datasets(df1, df, join_condition=join_conditions[i], join_type=join_type[i],i=i)
+                df1 = self.join_2_datasets(df1, df, join_condition=join_conditions[i], join_type=join_type[i], i=i)
                 for j in df.columns.values:
                     onlyField = j.split(".")[0]
                     typer = self.get_type(schemas[i + 1][onlyField].dataType)
                     df1[j] = df1[j].astype(typer)
-        self.rename_results_dfs(df1)
+                self.rename_results_dfs(df1)
+                if join_conditions[i] in self.aggregation:
+                    self.aggregate_datasets(df1, join_conditions[i])
         dfs.append(df1)
         self.save_dfs(dfs)
         return dfs
 
-    def rename_results_dfs(self,df):
+    def aggregate_datasets(self, df, join_condition):
+        condition = self.aggregation[join_condition]
+        df.query(condition, inplace=True)
+
+    def rename_results_dfs(self, df):
         need_to_change = {}
         for j in df.columns.values:
             j = j.split(".")
             if len(j) == 2:
                 need_to_change[j[1]] = j[0]
-        for key,value in need_to_change.items():
-            df.rename(columns={f"{value}.{key}":f"{key}.{value}"},inplace=True)
+        for key, value in need_to_change.items():
+            df.rename(columns={f"{value}.{key}": f"{key}.{value}"}, inplace=True)
