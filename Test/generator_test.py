@@ -69,9 +69,9 @@ class Tests(unittest.TestCase):
         df1 = None
         for i in range(len(self.join_condition)):
             if i == 0:
-                df1 = self.gen.join_2_datasets(self.dfs[i], self.dfs[i + 1], self.join_condition[i], self.join_type[i])
+                df1 = self.gen.join_2_datasets(self.dfs[i], self.dfs[i + 1], self.join_condition[i], self.join_type[i],i)
             else:
-                df1 = self.gen.join_2_datasets(df1, self.dfs[i + 1], self.join_condition[i], self.join_type[i])
+                df1 = self.gen.join_2_datasets(df1, self.dfs[i + 1], self.join_condition[i], self.join_type[i],i)
             self.assertEqual(len(df1), self.correlated_keys[i])
 
     def test_len_result_df(self):

@@ -67,7 +67,8 @@ class Config_Manager:
                                 possible_values, join_conditions, join_type, inter)
         dataset_sizes = list(map(lambda x: dataset_sizes[x], dataset_names))
 
-        return dataset_names, dataset_sizes, schemas, not_unique_restrictions, unique_restrictions, possible_values, join_conditions, join_type, intersecting_keys, aggregation
+        return (dataset_names, dataset_sizes, schemas, not_unique_restrictions,
+                unique_restrictions, possible_values, join_conditions, join_type, intersecting_keys, aggregation)
 
     def parse_fields(self, dataset):
         schema = StructType()
@@ -101,7 +102,11 @@ class Config_Manager:
                            join_conditions,
                            join_type,
                            intersecting_keys):
-        assert self.validate_sizes(schemas, join_type, join_conditions, intersecting_keys, dataset_sizes, dataset_names)
+        assert self.validate_sizes(schemas,
+                                   join_type,
+                                   join_conditions,
+                                   intersecting_keys,
+                                   dataset_sizes, dataset_names)
         assert self.validate_field_type(schemas, dataset_names)
         assert self.validate_size_and_not_unique_restriction(dataset_names, schemas, not_unique_restrictions,
                                                              unique_restrictions, possible_values, dataset_sizes)
@@ -134,7 +139,13 @@ class Config_Manager:
                             return False
         return True
 
-    def validate_sizes(self, schemas, join_type, join_conditions, correlated_keys, dataset_size, dataset_names) -> bool:
+    def validate_sizes(self,
+                       schemas,
+                       join_type,
+                       join_conditions,
+                       correlated_keys,
+                       dataset_size,
+                       dataset_names) -> bool:
         if len(schemas) == len(join_type) + 1 and len(schemas) == len(join_conditions) + 1 and len(schemas) == len(
                 correlated_keys) + 1:
             for i in range(len(correlated_keys) - 1):
@@ -145,11 +156,16 @@ class Config_Manager:
             return True
         return False
 
-    def validate_size_and_not_unique_restriction(self, dataset_names, schemas, not_unique_restrictions,
-                                                 unique_restrictions, possible_values, dataset_sizes) -> bool:
+    def validate_size_and_not_unique_restriction(self, dataset_names,
+                                                 schemas,
+                                                 not_unique_restrictions,
+                                                 unique_restrictions,
+                                                 possible_values,
+                                                 dataset_sizes) -> bool:
         for dataset in dataset_names:
             for field in schemas[dataset].fields:
-                if f"{dataset}.{field.name}" not in unique_restrictions and f"{dataset}.{field.name}" not in possible_values:
+                if (f"{dataset}.{field.name}" not in unique_restrictions
+                        and f"{dataset}.{field.name}" not in possible_values):
                     if field.dataType == IntegerType():
                         if not_unique_restrictions['max_int'] - not_unique_restrictions['min_int'] < dataset_sizes[
                             dataset]:
@@ -184,13 +200,18 @@ class Config_Manager:
     def validate_field_size_with_possible_values(self, dataset_names, schemas, dataset_sizes, possible_values) -> bool:
         for dataset in dataset_names:
             for field in schemas[dataset].fields:
-                if f"{dataset}.{field.name}" in possible_values and len(possible_values[f"{dataset}.{field.name}"][1]) < \
-                        dataset_sizes[dataset] and not possible_values[f"{dataset}.{field.name}"][0]:
+                if (f"{dataset}.{field.name}" in possible_values and
+                        len(possible_values[f"{dataset}.{field.name}"][1]) < \
+                        dataset_sizes[dataset] and not possible_values[f"{dataset}.{field.name}"][0]):
                     return False
         return True
 
-    def validate_fields_size_with_possible_values_and_unique_restrictions(self, dataset_names, schemas, correlated_keys,
-                                                                          unique_restrictions, possible_values,
+    def validate_fields_size_with_possible_values_and_unique_restrictions(self,
+                                                                          dataset_names,
+                                                                          schemas,
+                                                                          correlated_keys,
+                                                                          unique_restrictions,
+                                                                          possible_values,
                                                                           not_unique_restrictions):
         for i in range(len(dataset_names) - 1):
             dataset1 = dataset_names[i]
@@ -223,7 +244,8 @@ class Config_Manager:
     def helper_unique_and_possible(self, i, fixed_name, dataset_name1, dataset_name2, correlated_keys,
                                    unique_restrictions,
                                    possible_values, field) -> bool:
-        if f"{dataset_name1}.{field.name}" in possible_values and f"{dataset_name2}.{field.name}" in unique_restrictions:
+        if (f"{dataset_name1}.{field.name}" in possible_values and
+                f"{dataset_name2}.{field.name}" in unique_restrictions):
             if field.dataType == IntegerType() or field.dataType == DoubleType():
                 counter = 0
                 l = unique_restrictions[f"{dataset_name2}.{field.name}"][0]
@@ -248,10 +270,19 @@ class Config_Manager:
                     return False
         return True
 
-    def helper_unique_and_not_unique(self, i, fixed_name, dataset_name1, dataset_name2, correlated_keys,
+    def helper_unique_and_not_unique(self,
+                                     i,
+                                     fixed_name,
+                                     dataset_name1,
+                                     dataset_name2,
+                                     correlated_keys,
                                      unique_restrictions,
-                                     not_unique_restrictions, possible_values, field) -> bool:
-        if f"{dataset_name1}.{field.name}" in unique_restrictions and f"{dataset_name2}.{field.name}" not in unique_restrictions and f"{dataset_name2}.{field.name}" not in possible_values:
+                                     not_unique_restrictions,
+                                     possible_values,
+                                     field) -> bool:
+        if (f"{dataset_name1}.{field.name}" in unique_restrictions and
+                f"{dataset_name2}.{field.name}" not in unique_restrictions and
+                f"{dataset_name2}.{field.name}" not in possible_values):
             if field.dataType == IntegerType():
                 l1 = unique_restrictions[f"{dataset_name1}.{field.name}"][0]
                 r1 = unique_restrictions[f"{dataset_name1}.{field.name}"][1]
@@ -314,9 +345,18 @@ class Config_Manager:
 
         return True
 
-    def helper_not_unique_and_possible(self, i, fixed_name, dataset1, dataset2, correlated_keys, unique_restrictions,
-                                       not_unique_restrictions, possible_values, field) -> bool:
-        if f"{dataset1}.{field.name}" in possible_values and f"{dataset2}.{field.name}" not in possible_values and f"{dataset2}.{field.name}" not in unique_restrictions:
+    def helper_not_unique_and_possible(self, i,
+                                       fixed_name,
+                                       dataset1,
+                                       dataset2,
+                                       correlated_keys,
+                                       unique_restrictions,
+                                       not_unique_restrictions,
+                                       possible_values,
+                                       field) -> bool:
+        if (f"{dataset1}.{field.name}" in possible_values and
+                f"{dataset2}.{field.name}" not in possible_values and
+                f"{dataset2}.{field.name}" not in unique_restrictions):
             if field == IntegerType():
                 l = unique_restrictions['min_int']
                 r = unique_restrictions['max_int']
@@ -362,7 +402,8 @@ class Config_Manager:
             dataset1 = dataset_names[i]
             dataset2 = dataset_names[i + 1]
             for field1 in schemas[dataset1]:
-                if f"{dataset1}.{field1.name}" in unique_restrictions and f"{dataset2}.{field1.name}" in unique_restrictions:
+                if (f"{dataset1}.{field1.name}" in unique_restrictions and
+                        f"{dataset2}.{field1.name}" in unique_restrictions):
                     if (field1.dataType == StringType() and
                             unique_restrictions[f"{dataset1}.{field1.name}"] != unique_restrictions[
                                 f"{dataset2}.{field1.name}"]):
@@ -439,7 +480,10 @@ class Config_Manager:
 
         return True
 
-    def validate_size_and_unique_restrictions_for_dataset(self, dataset_names, dataset_sizes, schemas,
+    def validate_size_and_unique_restrictions_for_dataset(self,
+                                                          dataset_names,
+                                                          dataset_sizes,
+                                                          schemas,
                                                           unique_restrictions) -> bool:
         for i in range(len(dataset_names) - 1):
             dataset1 = dataset_names[i]

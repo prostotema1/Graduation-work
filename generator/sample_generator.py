@@ -1,6 +1,4 @@
 import datetime
-import random
-
 import pandas as pd
 from pandas import DataFrame
 from pyspark.sql.types import StructType, IntegerType, DoubleType, DateType, BooleanType, StringType
@@ -37,12 +35,13 @@ class sample_generator:
         self.generators = dict()
         self.string_format = string_format
         self.letters = letters
-        self.safe_to_csv = safe_to_csv  # Used for save. If true dfs will be saved in csv format, else dfs will be saved as parquet
+        self.safe_to_csv = safe_to_csv
         self.dataset_names = dataset_names
 
     def init_with_cfg(self, path_to_file):
         cfg_manager = Config_Manager(path_to_file)
-        self.dataset_names, sizes, schemas, not_unique_restrictions, unique_restriction, possible_values, join_conditions, join_type, correlated_keys, aggregation = cfg_manager.give_info()
+        (self.dataset_names, sizes, schemas, not_unique_restrictions, unique_restriction, possible_values,
+         join_conditions, join_type, correlated_keys, aggregation) = cfg_manager.give_info()
         schemas = list(schemas.values())
         self.aggregation = aggregation
         self.min_int = not_unique_restrictions['min_int']
@@ -178,8 +177,9 @@ class sample_generator:
                             join_conditioins: list[str],
                             join_type: list[str]) -> bool:
 
-        if len(schemas) == len(join_type) + 1 and len(schemas) == len(join_conditioins) + 1 and len(schemas) == len(
-                correlated_keys) + 1:
+        if (len(schemas) == len(join_type) + 1 and
+                len(schemas) == len(join_conditioins) + 1 and len(schemas) == len(
+                correlated_keys) + 1):
             for i in range(len(correlated_keys) - 1):
                 if correlated_keys[i] < correlated_keys[i + 1]:
                     return False
@@ -269,7 +269,11 @@ class sample_generator:
             if i == 0:
                 name1 = "dataset1" if self.dataset_names == "" else self.dataset_names[0]
                 name2 = "dataset2" if self.dataset_names == "" else self.dataset_names[1]
-                df1, df2 = self.generate_2_correlated_samples(schemas[i], schemas[i + 1], sizes[i], sizes[i + 1], name1,
+                df1, df2 = self.generate_2_correlated_samples(schemas[i],
+                                                              schemas[i + 1],
+                                                              sizes[i],
+                                                              sizes[i + 1],
+                                                              name1,
                                                               name2,
                                                               correlated_keys[i])
                 dfs.append(df1)
